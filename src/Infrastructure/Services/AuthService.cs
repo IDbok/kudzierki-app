@@ -28,17 +28,16 @@ public class AuthService : IAuthService
         _passwordHasher = passwordHasher;
     }
 
-    public async Task<Result<(string AccessToken, string RefreshToken)>> LoginAsync(
+    public async Task<Result<(User User, string AccessToken, string RefreshToken)>> LoginAsync(
         string email, string password, CancellationToken cancellationToken)
     {
         var user = await _userRepository.GetByEmailAsync(email, cancellationToken);
         if (user == null)
-            return Result<(string, string)>.Failure(Errors.Auth.InvalidCredentials);
+            return Result<(User, string, string)>.Failure(Errors.Auth.InvalidCredentials);
 
         var result = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, password);
         if (result != PasswordVerificationResult.Success)
-            return Result<(string, string)>.Failure(Errors.Auth.InvalidCredentials);
-
+            return Result<(User, string, string)>.Failure(Errors.Auth.InvalidCredentials);
         var accessToken = _tokenService.GenerateAccessToken(user);
         var refreshToken = _tokenService.GenerateRefreshToken();
 
@@ -54,7 +53,7 @@ public class AuthService : IAuthService
         await _refreshTokenRepository.AddAsync(refreshTokenEntity, cancellationToken);
         await _refreshTokenRepository.SaveChangesAsync(cancellationToken);
 
-        return Result<(string, string)>.Success((accessToken, refreshToken));
+        return Result<(User, string, string)>.Success((user, accessToken, refreshToken));
     }
 
     public async Task<Result<bool>> LogoutAsync(Guid userId, CancellationToken cancellationToken)

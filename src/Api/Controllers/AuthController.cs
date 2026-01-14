@@ -45,8 +45,17 @@ public class AuthController : ControllerBase
             });
         }
 
+        var response = new LoginResponse
+        {
+            Id = result.Value.User.Id.ToString(),
+            Email = result.Value.User.Email,
+            AccessToken = result.Value.AccessToken,
+            RefreshToken = result.Value.RefreshToken,
+            DisplayName = "todo" // TODO: Add display name to User entity
+        };
+
         _logger.LogInformation("Login successful for email: {Email}", request.Email);
-        return Ok(new LoginResponse(result.Value.AccessToken, result.Value.RefreshToken));
+        return Ok(response);
     }
 
     [HttpPost("logout")]

@@ -1,0 +1,36 @@
+<nav class="navbar border-b border-base-200 bg-base-100 px-4">
+  <div class="flex-1">
+    <a class="btn btn-ghost text-xl">Kudzierki</a>
+  </div>
+
+  <div class="flex-none">
+    <button class="btn btn-primary" type="button" (click)="openAuth()">Войти</button>
+  </div>
+</nav>
+
+<div class="modal modal-open" *ngIf="isAuthOpen()" (click)="closeAuth()">
+  <div
+    class="modal-box relative"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Авторизация"
+    (click)="$event.stopPropagation()"
+  >
+    <button
+      type="button"
+      class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
+      (click)="closeAuth()"
+      aria-label="Закрыть"
+    >
+      ✕
+    </button>
+
+    <h2 class="text-lg font-bold">Авторизация</h2>
+    <p class="py-4">Форма авторизации пока не реализована.</p>
+
+    <div class="modal-action">
+      <button type="button" class="btn btn-primary" (click)="requestLogin()">Войти</button>
+      <button type="button" class="btn" (click)="closeAuth()">Закрыть</button>
+    </div>
+  </div>
+</div>

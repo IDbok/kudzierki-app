@@ -54,6 +54,9 @@ builder.Services.AddJwtAuthentication(builder.Configuration);
 // Swagger
 builder.Services.AddSwaggerConfiguration();
 
+// CORS
+builder.Services.AddCors();
+
 // Application services
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
@@ -66,6 +69,11 @@ var app = builder.Build();
 
 // Middleware
 app.UseMiddleware<CorrelationIdMiddleware>();
+app.UseCors(o => o
+    .AllowAnyHeader()
+    .AllowAnyMethod()
+    .AllowCredentials()
+    .WithOrigins("http://localhost:4200", "https://localhost:4200"));
 
 if (app.Environment.IsDevelopment())
 {
