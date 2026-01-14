@@ -1,0 +1,44 @@
+services:
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: kudzierki-mssql
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "YourStrong@Password"
+      MSSQL_PID: "Express"
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql_data:/var/opt/mssql
+    healthcheck:
+      test: /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'YourStrong@Password' -C -Q 'SELECT 1' || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - kudzierki-network
+
+  api:
+    build:
+      context: .
+      dockerfile: src/Api/Dockerfile
+    container_name: kudzierki-api
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Server=mssql,1433;Database=kudzierki;User Id=sa;Password=YourStrong@Password;TrustServerCertificate=True
+    ports:
+      - "5000:8080"
+    depends_on:
+      mssql:
+        condition: service_healthy
+    networks:
+      - kudzierki-network
+
+volumes:
+  mssql_data:
+
+networks:
+  kudzierki-network:
+    driver: bridge
