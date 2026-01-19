@@ -1,5 +1,6 @@
 import { NgIf } from '@angular/common';
-import { Component, output, signal } from '@angular/core';
+import { Component, inject, output, signal } from '@angular/core';
+import { AccountService } from '../../core/services/account-service';
 
 @Component({
   selector: 'app-nav',
@@ -12,9 +13,11 @@ import { Component, output, signal } from '@angular/core';
   }
 })
 export class Nav {
+  protected accountService = inject(AccountService);
   protected readonly isAuthOpen = signal(false);
 
   readonly loginRequested = output<void>();
+  readonly logoutRequested = output<void>();
 
   openAuth(): void {
     this.isAuthOpen.set(true);
@@ -26,5 +29,9 @@ export class Nav {
 
   requestLogin(): void {
     this.loginRequested.emit();
+  }
+
+  requestLogout(): void {
+    this.logoutRequested.emit();
   }
 }

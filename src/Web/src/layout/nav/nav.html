@@ -4,7 +4,12 @@
   </div>
 
   <div class="flex-none">
-    <button class="btn btn-primary" type="button" (click)="openAuth()">Войти</button>
+    @if(!accountService.currentUser()){
+      <button class="btn btn-primary" type="button" (click)="requestLogin()">Войти</button>
+    }
+    @else {
+      <button class="btn btn-primary" type="button" (click)="requestLogout()">Выйти</button>
+    }
   </div>
 </nav>
 

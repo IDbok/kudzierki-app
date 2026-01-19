@@ -1,21 +1,34 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 import { Nav } from '../layout/nav/nav';
 import { AccountService } from '../core/services/account-service';
-import { LoginCreds } from '../types/user';
+import { LoginCreds, User } from '../types/user';
+import { EmployeeCalendar } from '../features/employee-calendar/employee-calendar';
 
 @Component({
   selector: 'app-root',
-  imports: [Nav],
+  imports: [Nav, EmployeeCalendar],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
-export class App {
+export class App implements OnInit {
   protected accountService = inject(AccountService);
   protected readonly title = signal('Kudzierki App');
   protected creds: LoginCreds = {
     email: 'admin@local',
     password: 'Admin123!'
   };
+
+  ngOnInit(): void {
+    this.setCurrentUser();
+  }
+  
+  setCurrentUser(){
+    const userJson = localStorage.getItem('user');
+    if(userJson){
+      const user: User = JSON.parse(userJson);
+      this.accountService.currentUser.set(user);
+    }
+  }
 
   login(){
     this.accountService.login(this.creds).subscribe({
@@ -27,7 +40,7 @@ export class App {
         // this.router.navigateByUrl('/members');
       },
       error: error => {
-        console.log(error);
+        console.error('Login failed', error);
       }
     })
   }

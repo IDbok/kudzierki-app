@@ -2,32 +2,32 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable, signal } from '@angular/core';
 import { environment } from '../../environments/environment';
 import { LoginCreds, User } from '../../types/user';
-import { tap } from 'rxjs/internal/operators/tap';
+import { tap } from 'rxjs';
 
 @Injectable({
   providedIn: 'root',
 })
 export class AccountService {
   private http = inject(HttpClient);
-  currentUser = signal<User | null>(null);
   private baseUrl = environment.apiUrl;
+  currentUser = signal<User | null>(null);
   
   login(creds: LoginCreds) {
-    console.log('Logging in with creds:', creds);
     return this.http.post<User>(this.baseUrl + 'auth/login', creds,
       {withCredentials: true}
     ).pipe(
       tap(user => {
-        if (user && user.accessToken) { 
-          console.log('Login successful, received user:', user);
-          this.setCurrentUser(user); 
-          // this.startTokenRefreshTimer();
-        }
-        else{
-          console.error('Login failed: No access token received');
+        if (user && user.accessToken) {
+          localStorage.setItem('user', JSON.stringify(user));
+          this.setCurrentUser(user);
         }
       })
     )
+  }
+
+  logout() {
+    localStorage.removeItem('user');
+    this.currentUser.set(null);
   }
 
   private setCurrentUser(user: User) {

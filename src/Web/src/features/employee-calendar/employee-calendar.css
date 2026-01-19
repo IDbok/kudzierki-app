@@ -1,0 +1,14 @@
+/* Days from the adjacent month */
+:host ::ng-deep .fc .fc-daygrid-day.fc-day-other {
+  opacity: 0.6;
+}
+
+/* Day number on "other" days */
+/* :host ::ng-deep .fc .fc-daygrid-day.fc-day-other .fc-daygrid-day-number {
+  opacity: 0.7;
+} */
+
+/* Events on "other" days (if shown) */
+:host ::ng-deep .fc .fc-daygrid-day.fc-day-other .fc-daygrid-event {
+  opacity: 0.6;
+}

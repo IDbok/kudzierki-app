@@ -14,8 +14,10 @@ public class Employee
 
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
-
+   
     public EmployeePosition Position { get; set; }
+
+    public bool IsActive { get; set; } = true;
 
     public Guid? UserId { get; set; }
     public User? User { get; set; }

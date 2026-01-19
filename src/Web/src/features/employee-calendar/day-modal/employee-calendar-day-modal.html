@@ -1,0 +1,134 @@
+@if (open()) {
+	<div class="modal modal-open" (click)="requestClose()">
+		<div
+			class="modal-box relative"
+			role="dialog"
+			aria-modal="true"
+			aria-label="День в календаре"
+			(click)="$event.stopPropagation()"
+		>
+			<button
+				type="button"
+				class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
+				(click)="requestClose()"
+				aria-label="Закрыть"
+			>
+				✕
+			</button>
+
+			<h2 class="text-lg font-bold">День: {{ dateStr() }}</h2>
+
+			@if (!isEditMode() && (existingAdminAssignments().length > 0 || existingCleaningAssignment())) {
+				@if (existingAdminAssignments().length > 0) {
+					<p class="py-2 opacity-80">Назначенные администраторы:</p>
+					<div class="space-y-2">
+						@for (a of existingAdminAssignments(); track a.employeeId) {
+							<div class="flex items-center justify-between gap-3">
+								<div class="font-medium">{{ employeeLabel(a.employeeId) }}</div>
+								@if (a.halfShift) {
+									<div class="badge badge-outline">пол смены</div>
+								} @else {
+									<div class="badge badge-outline">полная смена</div>
+								}
+							</div>
+						}
+					</div>
+				} @else {
+					<p class="py-2 opacity-80">Администраторы не назначены</p>
+				}
+
+				<div class="pt-4">
+					<p class="pb-2 opacity-80">Уборка:</p>
+					@if (existingCleaningAssignment()) {
+						<div class="flex items-center justify-between gap-3">
+							<div class="font-medium">{{ employeeLabel(existingCleaningAssignment()!.employeeId) }}</div>
+							<div class="badge badge-outline">Уборка</div>
+						</div>
+					} @else {
+						<div class="text-sm opacity-70">Не назначено</div>
+					}
+				</div>
+
+				<div class="pt-4">
+					<button type="button" class="btn btn-secondary" (click)="enterEditMode()">Изменить</button>
+				</div>
+			} @else {
+				<p class="py-2 opacity-80">Выберите администраторов на смену</p>
+				<div class="space-y-2 max-h-72 overflow-auto pr-1">
+					@for (admin of admins(); track admin.id) {
+						<div class="border border-base-300 rounded-lg p-3">
+							<label class="flex items-center gap-3 cursor-pointer">
+								<input
+									type="checkbox"
+									class="checkbox"
+									[checked]="isAdminSelected(admin.id)"
+									(change)="toggleAdminSelected(admin.id, ($any($event.target).checked))"
+								/>
+								<span class="font-medium">{{ admin.firstName }} {{ admin.lastName }}</span>
+							</label>
+
+							@if (isAdminSelected(admin.id)) {
+								<div class="pt-3 pl-8">
+									<label class="flex items-center gap-3 cursor-pointer">
+										<input
+											type="checkbox"
+											class="checkbox checkbox-sm"
+											[checked]="getAdminHalfShift(admin.id)"
+											(change)="setAdminHalfShift(admin.id, ($any($event.target).checked))"
+										/>
+										<span class="text-sm opacity-80">пол смены</span>
+									</label>
+								</div>
+							}
+						</div>
+					}
+				</div>
+
+				<div class="divider my-4"></div>
+				<p class="py-2 opacity-80">Уборка</p>
+				<div class="space-y-3">
+					<label class="flex items-center gap-3 cursor-pointer">
+						<input
+							type="checkbox"
+							class="checkbox"
+							[checked]="draftCleaningEnabled()"
+							(change)="toggleCleaningEnabled(($any($event.target).checked))"
+						/>
+						<span class="font-medium">Уборка в этот день</span>
+					</label>
+
+					@if (draftCleaningEnabled()) {
+						@if (cleaners().length === 0) {
+							<div class="text-sm text-error">Нет сотрудников с ролью уборки</div>
+						} @else if (cleaners().length === 1) {
+							<div class="text-sm opacity-80">Уборщик: {{ cleaners()[0]!.firstName }} {{ cleaners()[0]!.lastName }}</div>
+						} @else {
+							<label class="form-control w-full">
+								<div class="label">
+									<span class="label-text">Кто убирает?</span>
+								</div>
+								<select
+									class="select select-bordered w-full"
+									[value]="draftCleanerId() ?? ''"
+									(change)="onCleanerSelected(($any($event.target).value || null))"
+								>
+									<option value="" disabled>Выберите уборщика</option>
+									@for (c of cleaners(); track c.id) {
+										<option [value]="c.id">{{ c.firstName }} {{ c.lastName }}</option>
+									}
+								</select>
+							</label>
+						}
+					}
+				</div>
+			}
+
+			<div class="modal-action">
+				@if (isEditMode()) {
+					<button type="button" class="btn btn-primary" [disabled]="!canSave()" (click)="requestSave()">Сохранить</button>
+				}
+				<button type="button" class="btn" (click)="requestClose()">Закрыть</button>
+			</div>
+		</div>
+	</div>
+}

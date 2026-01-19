@@ -1,5 +1,5 @@
-<app-nav (loginRequested)="login()"></app-nav>
+<app-nav (loginRequested)="login()" (logoutRequested)="accountService.logout()"></app-nav>
 <h1 class="text-center text-2xl font-bold">{{ title() }}</h1>
 @if (accountService.currentUser()){
-    <h1>{{ accountService.currentUser()?.email }}</h1>
+    <app-employee-calendar></app-employee-calendar>
 }

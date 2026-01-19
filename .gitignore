@@ -64,3 +64,6 @@ appsettings.*.json
 
 # Notes
 project structure.txt
+
+# Tools exports (generated)
+src/Tools/exports/

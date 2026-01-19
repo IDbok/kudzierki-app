@@ -35,6 +35,11 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<Employee>(entity =>
         {
             entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.IsActive)
+                .IsRequired()
+                .HasDefaultValue(true);
+
             entity.HasIndex(e => e.UserId)
                 .IsUnique()
                 .HasFilter("[UserId] IS NOT NULL");
