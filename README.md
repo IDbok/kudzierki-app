@@ -25,6 +25,14 @@ ASP.NET Core 10 Web API с MS SQL Server, JWT аутентификацией и 
 docker compose up --build
 ```
 
+Перед запуском задайте секреты Altegio в окружении (или в `.env`, который не коммитится):
+
+```bash
+ALTEGIO_BEARER_TOKEN=your-bearer-token
+ALTEGIO_USER_TOKEN=your-user-token
+ALTEGIO_COMPANY_ID=your-company-id
+```
+
 API будет доступно по адресу: **http://localhost:5000**
 Swagger UI: **http://localhost:5000/swagger**
 
@@ -242,6 +250,16 @@ Connection string можно переопределить:
 ```bash
 ConnectionStrings__DefaultConnection="Server=...;Database=...;"
 ```
+
+Секреты Altegio можно передавать так:
+
+```bash
+ALTEGIO_BEARER_TOKEN="..."
+ALTEGIO_USER_TOKEN="..."
+Altegio__CompanyId="1"
+```
+
+Приложение валидирует `Altegio` настройки на старте и завершится с ошибкой, если токены не заданы.
 
 ## Логирование
 

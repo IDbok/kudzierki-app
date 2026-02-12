@@ -1,7 +1,9 @@
+﻿using System.Net.Http.Headers;
 using Api.Configuration;
 using Api.Middleware;
 using Infrastructure.Data;
 using Infrastructure.Entities;
+using Infrastructure.Integrations.Altegio;
 using Infrastructure.Repositories;
 using Infrastructure.Services;
 using Microsoft.AspNetCore.Identity;
@@ -56,6 +58,19 @@ builder.Services.AddSwaggerConfiguration();
 
 // CORS
 builder.Services.AddCors();
+
+// Altegio integration
+builder.AddAltegioConfiguration();
+
+builder.Services.AddHttpClient<IAltegioService, AltegioService>((serviceProvider, client) =>
+{
+    var settings = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<AltegioSettings>>().Value;
+
+    client.BaseAddress = new Uri(settings.BaseUrl);
+    client.DefaultRequestHeaders.Authorization =
+        new AuthenticationHeaderValue("Bearer", $"{settings.BearerToken},{settings.UserToken}");
+    client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.api.v2+json"));
+});
 
 // Application services
 builder.Services.AddScoped<IUserRepository, UserRepository>();

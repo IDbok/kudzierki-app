@@ -16,6 +16,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<WorkDay> WorkDays => Set<WorkDay>();
     public DbSet<WorkDayAssignment> WorkDayAssignments => Set<WorkDayAssignment>();
+    public DbSet<CashRegisterClosing> CashRegisterClosings => Set<CashRegisterClosing>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -92,6 +93,28 @@ public class ApplicationDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.EmployeeId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<CashRegisterClosing>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Date).IsRequired();
+            entity.Property(e => e.CreatedAt).IsRequired();
+            entity.Property(e => e.CashBalanceFact).HasPrecision(18, 2);
+            entity.Property(e => e.TerminalIncomeFact).HasPrecision(18, 2);
+            entity.Property(e => e.CashBalanceDayBefore).HasPrecision(18, 2);
+            entity.Property(e => e.CashIncomeAltegio).HasPrecision(18, 2);
+            entity.Property(e => e.TransferIncomeAltegio).HasPrecision(18, 2);
+            entity.Property(e => e.TerminalIncomeAltegio).HasPrecision(18, 2);
+            entity.Property(e => e.CashSpendingAdmin).HasPrecision(18, 2);
+            entity.Property(e => e.InCashTransfer).HasPrecision(18, 2);
+            entity.Property(e => e.OutCashTransfer).HasPrecision(18, 2);
+
+            entity.Property(e => e.Comment)
+                .HasMaxLength(2048);
+
+            entity.HasIndex(e => e.Date)
+                .IsUnique();
         });
     }
 }

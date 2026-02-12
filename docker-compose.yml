@@ -28,6 +28,9 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__DefaultConnection=Server=mssql,1433;Database=kudzierki;User Id=sa;Password=YourStrong@Password;TrustServerCertificate=True
+      - ALTEGIO_BEARER_TOKEN=${ALTEGIO_BEARER_TOKEN}
+      - ALTEGIO_USER_TOKEN=${ALTEGIO_USER_TOKEN}
+      - Altegio__CompanyId=${ALTEGIO_COMPANY_ID}
     ports:
       - "5000:8080"
     depends_on:

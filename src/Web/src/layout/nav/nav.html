@@ -1,16 +1,48 @@
-<nav class="navbar border-b border-base-200 bg-base-100 px-4">
-  <div class="flex-1">
-    <a class="btn btn-ghost text-xl">Kudzierki</a>
+<nav class="border-b border-base-200 bg-base-100 px-4">
+  <div class="navbar px-0">
+    <div class="flex-1">
+      <a class="btn btn-ghost text-xl">Kudzierki</a>
+    </div>
+
+    <div class="flex-none">
+      <button
+        type="button"
+        class="btn btn-ghost btn-sm mr-2"
+        (click)="toggleTheme()"
+        aria-label="Toggle theme"
+      >
+        @if (theme() === 'dark') { Dark }
+        @else { Light }
+      </button>
+      @if(!accountService.currentUser()){
+        <button class="btn btn-primary" type="button" (click)="requestLogin()">Войти</button>
+      }
+      @else {
+        <button class="btn btn-primary" type="button" (click)="requestLogout()">Выйти</button>
+      }
+    </div>
   </div>
 
-  <div class="flex-none">
-    @if(!accountService.currentUser()){
-      <button class="btn btn-primary" type="button" (click)="requestLogin()">Войти</button>
-    }
-    @else {
-      <button class="btn btn-primary" type="button" (click)="requestLogout()">Выйти</button>
-    }
-  </div>
+  @if (accountService.currentUser()){
+    <div class="mx-auto flex max-w-4xl justify-center gap-2 pb-3">
+      <button
+        type="button"
+        class="btn btn-sm"
+        [class.btn-active]="activeTab() === 'calendar'"
+        (click)="setTab('calendar')"
+      >
+        Calendar
+      </button>
+      <button
+        type="button"
+        class="btn btn-sm"
+        [class.btn-active]="activeTab() === 'cash'"
+        (click)="setTab('cash')"
+      >
+        Cash Register
+      </button>
+    </div>
+  }
 </nav>
 
 <div class="modal modal-open" *ngIf="isAuthOpen()" (click)="closeAuth()">

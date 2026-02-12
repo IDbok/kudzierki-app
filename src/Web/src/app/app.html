@@ -1,5 +1,16 @@
-<app-nav (loginRequested)="login()" (logoutRequested)="accountService.logout()"></app-nav>
+<app-nav
+  (loginRequested)="login()"
+  (logoutRequested)="accountService.logout()"
+  [activeTab]="activeTab()"
+  (tabChanged)="setTab($event)"
+></app-nav>
 <h1 class="text-center text-2xl font-bold">{{ title() }}</h1>
 @if (accountService.currentUser()){
-    <app-employee-calendar></app-employee-calendar>
+    @if (activeTab() === 'calendar') {
+      <app-employee-calendar></app-employee-calendar>
+    }
+
+    @if (activeTab() === 'cash') {
+      <app-cash-register></app-cash-register>
+    }
 }
