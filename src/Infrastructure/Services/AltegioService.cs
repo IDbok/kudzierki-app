@@ -133,6 +133,29 @@ public sealed class AltegioService : IAltegioService
         return new AltegioFinanceTransactionsResult(from, to, result);
     }
 
+    public async Task<IReadOnlyList<AltegioFinanceSourceTransaction>> GetFinanceSourceTransactionsAsync(
+        DateOnly from,
+        DateOnly to,
+        CancellationToken cancellationToken = default)
+    {
+        var transactions = await GetTransactionsAsync(from, to, cancellationToken);
+
+        return transactions
+            .OrderBy(ResolveTransactionTimestamp)
+            .Select(x => new AltegioFinanceSourceTransaction(
+                x.Id,
+                ResolveTransactionTimestamp(x),
+                ToNullableDateTime(x.CreatedAt),
+                ToNullableDateTime(x.LastChangeDate),
+                x.Amount,
+                x.Comment,
+                x.Account?.Id,
+                x.Account?.Title,
+                IsCash(x),
+                JsonSerializer.Serialize(x, JsonOptions)))
+            .ToList();
+    }
+
     private async Task<List<T>> GetEnvelopeAsync<T>(string path, IReadOnlyDictionary<string, string> query, CancellationToken cancellationToken)
     {
         var request = BuildRequest(path, query);
@@ -232,6 +255,11 @@ public sealed class AltegioService : IAltegioService
     private static DateTime ResolveTransactionTimestamp(AltegioTransaction transaction)
     {
         return transaction.DateTime == default ? transaction.Date : transaction.DateTime;
+    }
+
+    private static DateTime? ToNullableDateTime(DateTime value)
+    {
+        return value == default ? null : value;
     }
 
     private static bool IsCash(AltegioTransaction transaction)

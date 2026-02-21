@@ -14,10 +14,12 @@ public class AltegioController : ControllerBase
     private const string DateFormat = "yyyy-MM-dd";
 
     private readonly IAltegioService _altegioService;
+    private readonly IAltegioTransactionIngestionService _ingestionService;
 
-    public AltegioController(IAltegioService altegioService)
+    public AltegioController(IAltegioService altegioService, IAltegioTransactionIngestionService ingestionService)
     {
         _altegioService = altegioService;
+        _ingestionService = ingestionService;
     }
 
     [HttpGet("employees/{employeeId:int}/schedule")]
@@ -137,6 +139,30 @@ public class AltegioController : ControllerBase
             cashRegisterTotals,
             transactions.Count,
             transactions));
+    }
+
+    [HttpPost("finance/transactions/sync")]
+    [ProducesResponseType(typeof(AltegioFinanceTransactionsSyncResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> SyncFinanceTransactions(
+        [FromQuery] string? date,
+        [FromQuery] string? from,
+        [FromQuery] string? to,
+        CancellationToken cancellationToken)
+    {
+        if (!TryResolveFinanceRange(date, from, to, out var fromDate, out var toDate, out var error))
+            return BadRequest(CreateBadRequest(error));
+
+        var result = await _ingestionService.IngestFinanceTransactionsAsync(fromDate, toDate, cancellationToken);
+
+        return Ok(new AltegioFinanceTransactionsSyncResponse(
+            result.From,
+            result.To,
+            result.FetchedCount,
+            result.DistinctExternalIdsCount,
+            result.RawInsertedCount,
+            result.SnapshotInsertedCount,
+            result.SnapshotUpdatedCount));
     }
 
     private static ProblemDetails CreateBadRequest(string detail)

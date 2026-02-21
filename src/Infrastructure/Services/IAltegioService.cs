@@ -6,6 +6,10 @@ public interface IAltegioService
     Task<AltegioSalaryPeriodResult> GetEmployeeSalaryAsync(int employeeId, DateOnly from, DateOnly to, CancellationToken cancellationToken = default);
     Task<AltegioFinanceDailyResult> GetFinanceDailyAsync(DateOnly date, CancellationToken cancellationToken = default);
     Task<AltegioFinanceTransactionsResult> GetFinanceTransactionsAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<AltegioFinanceSourceTransaction>> GetFinanceSourceTransactionsAsync(
+        DateOnly from,
+        DateOnly to,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed record AltegioScheduleItem(
@@ -54,3 +58,15 @@ public sealed record AltegioFinanceTransactionsResult(
     DateOnly From,
     DateOnly To,
     IReadOnlyList<AltegioFinanceTransaction> Transactions);
+
+public sealed record AltegioFinanceSourceTransaction(
+    long Id,
+    DateTime AppointmentDateTime,
+    DateTime? AltegioCreateDateTime,
+    DateTime? LastChangeDateTime,
+    decimal Amount,
+    string? Comment,
+    int? AccountId,
+    string? AccountTitle,
+    bool IsCash,
+    string PayloadJson);
