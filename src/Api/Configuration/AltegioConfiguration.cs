@@ -24,6 +24,17 @@ public static class AltegioConfiguration
             .Validate(settings => !string.IsNullOrWhiteSpace(settings.UserToken),
                 "Altegio user token is not configured. Set one of: user-secrets Altegio:UserToken, env Altegio__UserToken, or env ALTEGIO_USER_TOKEN.")
             .ValidateOnStart();
+
+        builder.Services
+            .AddOptions<AltegioTransactionsSyncSettings>()
+            .Bind(builder.Configuration.GetSection(AltegioSettings.SectionName).GetSection(AltegioTransactionsSyncSettings.SectionName))
+            .Validate(settings => settings.PollingIntervalMinutes > 0, "Altegio:TransactionsSync:PollingIntervalMinutes must be greater than zero.")
+            .Validate(settings => settings.FullSyncIntervalHours > 0, "Altegio:TransactionsSync:FullSyncIntervalHours must be greater than zero.")
+            .Validate(settings => settings.ShortToDaysOffset >= settings.ShortFromDaysOffset,
+                "Altegio:TransactionsSync short window is invalid. ShortToDaysOffset must be greater than or equal to ShortFromDaysOffset.")
+            .Validate(settings => settings.FullToDaysOffset >= settings.FullFromDaysOffset,
+                "Altegio:TransactionsSync full window is invalid. FullToDaysOffset must be greater than or equal to FullFromDaysOffset.")
+            .ValidateOnStart();
     }
 
     private static string ResolveSecret(string? configuredValue, string environmentVariableName, string legacyEnvironmentVariableName)

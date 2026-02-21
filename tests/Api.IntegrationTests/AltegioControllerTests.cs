@@ -100,6 +100,9 @@ public class AltegioControllerTests : IClassFixture<CustomWebApplicationFactory>
     [Fact]
     public async Task Altegio_GetFinanceTransactions_ReturnsTotalsByCashRegister_AndTransactionsCount()
     {
+        var syncResponse = await _client.PostAsync("/api/v1/altegio/finance/transactions/sync?date=2026-02-12", null);
+        syncResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
         var response = await _client.GetAsync("/api/v1/altegio/finance/transactions?date=2026-02-12");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -110,7 +113,7 @@ public class AltegioControllerTests : IClassFixture<CustomWebApplicationFactory>
         payload.To.Should().Be(new DateOnly(2026, 2, 12));
         payload.TransactionsCount.Should().Be(6);
         payload.Transactions.Should().HaveCount(6);
-        payload.Transactions.Should().OnlyContain(x => x.CreatedAt == null);
+        payload.Transactions.Should().OnlyContain(x => x.CreatedAt != null);
         payload.Transactions.Should().ContainSingle(x => x.Id == 1 && x.LastChangeDate == new DateTime(2026, 2, 12, 9, 30, 0));
         payload.CashRegisterTotals.Should().HaveCount(3);
 
@@ -122,6 +125,9 @@ public class AltegioControllerTests : IClassFixture<CustomWebApplicationFactory>
     [Fact]
     public async Task Altegio_GetFinanceTransactions_WithDate_ReturnsOnlyRequestedDay()
     {
+        var syncResponse = await _client.PostAsync("/api/v1/altegio/finance/transactions/sync?date=2026-02-13", null);
+        syncResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
         var response = await _client.GetAsync("/api/v1/altegio/finance/transactions?date=2026-02-13");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -132,10 +138,36 @@ public class AltegioControllerTests : IClassFixture<CustomWebApplicationFactory>
         payload.To.Should().Be(new DateOnly(2026, 2, 13));
         payload.Transactions.Should().HaveCount(1);
         payload.Transactions[0].Id.Should().Be(7);
-        payload.Transactions[0].CreatedAt.Should().BeNull();
+        payload.Transactions[0].CreatedAt.Should().NotBeNull();
         payload.Transactions[0].LastChangeDate.Should().BeNull();
         payload.TransactionsCount.Should().Be(1);
         payload.CashRegisterTotals.Should().ContainSingle(x => x.CashRegisterId == 1464652 && x.TotalAmount == 25m && x.TransactionsCount == 1);
+    }
+
+    [Fact]
+    public async Task Altegio_SyncFinanceTransactions_IsIdempotent()
+    {
+        var firstResponse = await _client.PostAsync("/api/v1/altegio/finance/transactions/sync?date=2026-02-12", null);
+        firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var firstPayload = await firstResponse.Content.ReadFromJsonAsync<AltegioFinanceTransactionsSyncResponse>();
+        firstPayload.Should().NotBeNull();
+        firstPayload!.FetchedCount.Should().Be(6);
+        firstPayload.DistinctExternalIdsCount.Should().Be(6);
+        firstPayload.RawInsertedCount.Should().Be(6);
+        firstPayload.SnapshotInsertedCount.Should().Be(6);
+        firstPayload.SnapshotUpdatedCount.Should().Be(0);
+
+        var secondResponse = await _client.PostAsync("/api/v1/altegio/finance/transactions/sync?date=2026-02-12", null);
+        secondResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var secondPayload = await secondResponse.Content.ReadFromJsonAsync<AltegioFinanceTransactionsSyncResponse>();
+        secondPayload.Should().NotBeNull();
+        secondPayload!.FetchedCount.Should().Be(6);
+        secondPayload.DistinctExternalIdsCount.Should().Be(6);
+        secondPayload.RawInsertedCount.Should().Be(0);
+        secondPayload.SnapshotInsertedCount.Should().Be(0);
+        secondPayload.SnapshotUpdatedCount.Should().Be(6);
     }
 
     private HttpClient CreateClientWithMockedAltegio()

@@ -1,8 +1,10 @@
-﻿using System.Globalization;
+using System.Globalization;
 using Api.Models.Responses;
+using Infrastructure.Data;
 using Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Api.Controllers;
 
@@ -15,11 +17,16 @@ public class AltegioController : ControllerBase
 
     private readonly IAltegioService _altegioService;
     private readonly IAltegioTransactionIngestionService _ingestionService;
+    private readonly ApplicationDbContext _dbContext;
 
-    public AltegioController(IAltegioService altegioService, IAltegioTransactionIngestionService ingestionService)
+    public AltegioController(
+        IAltegioService altegioService,
+        IAltegioTransactionIngestionService ingestionService,
+        ApplicationDbContext dbContext)
     {
         _altegioService = altegioService;
         _ingestionService = ingestionService;
+        _dbContext = dbContext;
     }
 
     [HttpGet("employees/{employeeId:int}/schedule")]
@@ -109,13 +116,22 @@ public class AltegioController : ControllerBase
         if (!TryResolveFinanceRange(date, from, to, out var fromDate, out var toDate, out var error))
             return BadRequest(CreateBadRequest(error));
 
-        var result = await _altegioService.GetFinanceTransactionsAsync(fromDate, toDate, cancellationToken);
-        var transactions = result.Transactions
+        var fromDateTime = fromDate.ToDateTime(TimeOnly.MinValue);
+        var toExclusiveDateTime = toDate.AddDays(1).ToDateTime(TimeOnly.MinValue);
+
+        var snapshots = await _dbContext.AltegioTransactionSnapshots
+            .Where(x => x.AppointmentDateTime.HasValue &&
+                        x.AppointmentDateTime.Value >= fromDateTime &&
+                        x.AppointmentDateTime.Value < toExclusiveDateTime)
+            .OrderBy(x => x.AppointmentDateTime)
+            .ToListAsync(cancellationToken);
+
+        var transactions = snapshots
             .Select(x => new AltegioFinanceTransactionItemResponse(
-                x.Id,
-                x.DateTime,
-                x.CreatedAt,
-                x.LastChangeDate,
+                x.ExternalId,
+                x.AppointmentDateTime!.Value,
+                x.FirstSeenAtUtc.UtcDateTime,
+                x.LastChangeDateTime,
                 x.Amount,
                 x.Comment,
                 x.AccountId,
@@ -123,7 +139,7 @@ public class AltegioController : ControllerBase
                 x.IsCash))
             .ToList();
 
-        var cashRegisterTotals = result.Transactions
+        var cashRegisterTotals = snapshots
             .GroupBy(x => new { x.AccountId, x.AccountTitle })
             .Select(x => new AltegioFinanceCashRegisterTotalResponse(
                 x.Key.AccountId,
@@ -134,8 +150,8 @@ public class AltegioController : ControllerBase
             .ToList();
 
         return Ok(new AltegioFinanceTransactionsResponse(
-            result.From,
-            result.To,
+            fromDate,
+            toDate,
             cashRegisterTotals,
             transactions.Count,
             transactions));
