@@ -257,6 +257,15 @@ ConnectionStrings__DefaultConnection="Server=...;Database=...;"
 ALTEGIO_BEARER_TOKEN="..."
 ALTEGIO_USER_TOKEN="..."
 Altegio__CompanyId="1"
+
+# Optional: background sync config
+Altegio__TransactionsSync__Enabled="true"
+Altegio__TransactionsSync__PollingIntervalMinutes="5"
+Altegio__TransactionsSync__ShortFromDaysOffset="-1"
+Altegio__TransactionsSync__ShortToDaysOffset="30"
+Altegio__TransactionsSync__FullFromDaysOffset="-30"
+Altegio__TransactionsSync__FullToDaysOffset="365"
+Altegio__TransactionsSync__FullSyncIntervalHours="24"
 ```
 
 Приложение валидирует `Altegio` настройки на старте и завершится с ошибкой, если токены не заданы.
@@ -338,3 +347,33 @@ docker ps -a | grep testcontainers | awk '{print $1}' | xargs docker rm -f
 ## Лицензия
 
 MIT
+
+
+## Altegio Transactions Sync and Snapshot
+
+- `POST /api/v1/altegio/finance/transactions/sync` loads transactions from Altegio and stores them in local tables.
+- `GET /api/v1/altegio/finance/transactions` reads from local snapshots, not directly from Altegio API.
+- Response field `CreatedAt` is mapped from `FirstSeenAtUtc` (first observation time in this service).
+- Raw payload history is stored in `AltegioTransactionRaws` with deduplication key `(ExternalId, PayloadHash)`.
+- Current snapshot state is stored in `AltegioTransactionSnapshots` with unique key `ExternalId`.
+
+### Background Sync
+
+Configure under `Altegio:TransactionsSync` in `appsettings.json` (or env vars).
+Default behavior: disabled (`Enabled: false`).
+
+Example config:
+
+```json
+"Altegio": {
+  "TransactionsSync": {
+    "Enabled": true,
+    "PollingIntervalMinutes": 5,
+    "ShortFromDaysOffset": -1,
+    "ShortToDaysOffset": 30,
+    "FullFromDaysOffset": -30,
+    "FullToDaysOffset": 365,
+    "FullSyncIntervalHours": 24
+  }
+}
+```
