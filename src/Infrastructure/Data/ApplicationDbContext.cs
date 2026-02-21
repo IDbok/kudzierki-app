@@ -17,6 +17,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<WorkDay> WorkDays => Set<WorkDay>();
     public DbSet<WorkDayAssignment> WorkDayAssignments => Set<WorkDayAssignment>();
     public DbSet<CashRegisterClosing> CashRegisterClosings => Set<CashRegisterClosing>();
+    public DbSet<AltegioTransactionRaw> AltegioTransactionRaws => Set<AltegioTransactionRaw>();
+    public DbSet<AltegioTransactionSnapshot> AltegioTransactionSnapshots => Set<AltegioTransactionSnapshot>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -114,6 +116,49 @@ public class ApplicationDbContext : DbContext
                 .HasMaxLength(2048);
 
             entity.HasIndex(e => e.Date)
+                .IsUnique();
+        });
+
+        modelBuilder.Entity<AltegioTransactionRaw>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.ExternalId).IsRequired();
+
+            entity.Property(e => e.PayloadJson)
+                .IsRequired()
+                .HasColumnType("nvarchar(max)");
+
+            entity.Property(e => e.PayloadHash)
+                .IsRequired()
+                .HasMaxLength(128);
+
+            entity.Property(e => e.FetchedAtUtc).IsRequired();
+
+            entity.HasIndex(e => new { e.ExternalId, e.PayloadHash })
+                .IsUnique();
+
+            entity.HasIndex(e => e.FetchedAtUtc);
+        });
+
+        modelBuilder.Entity<AltegioTransactionSnapshot>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.ExternalId).IsRequired();
+            entity.Property(e => e.Amount).HasPrecision(18, 2);
+
+            entity.Property(e => e.Comment)
+                .HasMaxLength(2048);
+
+            entity.Property(e => e.AccountTitle)
+                .HasMaxLength(256);
+
+            entity.Property(e => e.IsCash).IsRequired();
+            entity.Property(e => e.FirstSeenAtUtc).IsRequired();
+            entity.Property(e => e.LastSeenAtUtc).IsRequired();
+
+            entity.HasIndex(e => e.ExternalId)
                 .IsUnique();
         });
     }
