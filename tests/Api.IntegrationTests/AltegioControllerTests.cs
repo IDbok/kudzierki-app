@@ -97,6 +97,47 @@ public class AltegioControllerTests : IClassFixture<CustomWebApplicationFactory>
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
+    [Fact]
+    public async Task Altegio_GetFinanceTransactions_ReturnsTotalsByCashRegister_AndTransactionsCount()
+    {
+        var response = await _client.GetAsync("/api/v1/altegio/finance/transactions?date=2026-02-12");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var payload = await response.Content.ReadFromJsonAsync<AltegioFinanceTransactionsResponse>();
+
+        payload.Should().NotBeNull();
+        payload!.From.Should().Be(new DateOnly(2026, 2, 12));
+        payload.To.Should().Be(new DateOnly(2026, 2, 12));
+        payload.TransactionsCount.Should().Be(6);
+        payload.Transactions.Should().HaveCount(6);
+        payload.Transactions.Should().OnlyContain(x => x.CreatedAt == null);
+        payload.Transactions.Should().ContainSingle(x => x.Id == 1 && x.LastChangeDate == new DateTime(2026, 2, 12, 9, 30, 0));
+        payload.CashRegisterTotals.Should().HaveCount(3);
+
+        payload.CashRegisterTotals.Should().ContainSingle(x => x.CashRegisterId == 1464652 && x.TotalAmount == 80m && x.TransactionsCount == 2);
+        payload.CashRegisterTotals.Should().ContainSingle(x => x.CashRegisterId == 1464653 && x.TotalAmount == 50m && x.TransactionsCount == 2);
+        payload.CashRegisterTotals.Should().ContainSingle(x => x.CashRegisterId == 3 && x.TotalAmount == 35m && x.TransactionsCount == 2);
+    }
+
+    [Fact]
+    public async Task Altegio_GetFinanceTransactions_WithDate_ReturnsOnlyRequestedDay()
+    {
+        var response = await _client.GetAsync("/api/v1/altegio/finance/transactions?date=2026-02-13");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var payload = await response.Content.ReadFromJsonAsync<AltegioFinanceTransactionsResponse>();
+
+        payload.Should().NotBeNull();
+        payload!.From.Should().Be(new DateOnly(2026, 2, 13));
+        payload.To.Should().Be(new DateOnly(2026, 2, 13));
+        payload.Transactions.Should().HaveCount(1);
+        payload.Transactions[0].Id.Should().Be(7);
+        payload.Transactions[0].CreatedAt.Should().BeNull();
+        payload.Transactions[0].LastChangeDate.Should().BeNull();
+        payload.TransactionsCount.Should().Be(1);
+        payload.CashRegisterTotals.Should().ContainSingle(x => x.CashRegisterId == 1464652 && x.TotalAmount == 25m && x.TransactionsCount == 1);
+    }
+
     private HttpClient CreateClientWithMockedAltegio()
     {
         var app = _factory.WithWebHostBuilder(builder =>
@@ -188,15 +229,27 @@ public class AltegioControllerTests : IClassFixture<CustomWebApplicationFactory>
 
             if (pathAndQuery.Contains("/transactions/1", StringComparison.OrdinalIgnoreCase))
             {
+                var query = request.RequestUri?.Query ?? string.Empty;
+                if (!query.Contains("start_date=", StringComparison.OrdinalIgnoreCase) ||
+                    !query.Contains("end_date=", StringComparison.OrdinalIgnoreCase))
+                {
+                    return Task.FromResult(new HttpResponseMessage(HttpStatusCode.BadRequest)
+                    {
+                        Content = new StringContent("{\"data\":[]}", Encoding.UTF8, "application/json")
+                    });
+                }
+
                 return Task.FromResult(JsonResponse("""
                 {
                   "data": [
-                    { "id": 1, "amount": 100.0, "comment": "service", "account": { "id": 1464652, "title": "Cash", "is_cash": true } },
-                    { "id": 2, "amount": 60.0, "comment": "service", "account": { "id": 1464653, "title": "Terminal", "is_cash": false } },
-                    { "id": 3, "amount": 40.0, "comment": "#перевод", "account": { "id": 3, "title": "Transfer", "is_cash": false } },
-                    { "id": 4, "amount": -20.0, "comment": "expense", "account": { "id": 1464652, "title": "Cash", "is_cash": true } },
-                    { "id": 5, "amount": -10.0, "comment": "expense", "account": { "id": 1464653, "title": "Terminal", "is_cash": false } },
-                    { "id": 6, "amount": -5.0, "comment": "#перевод", "account": { "id": 3, "title": "Transfer", "is_cash": false } }
+                                        { "id": 1, "date": "2026-02-12", "datetime": "2026-02-12T09:00:00", "last_change_date": "2026-02-12T09:30:00", "amount": 100.0, "comment": "service", "account": { "id": 1464652, "title": "Cash", "is_cash": true } },
+                                        { "id": 2, "date": "2026-02-12", "datetime": "2026-02-12T10:00:00", "amount": 60.0, "comment": "service", "account": { "id": 1464653, "title": "Terminal", "is_cash": false } },
+                                        { "id": 3, "date": "2026-02-12", "datetime": "2026-02-12T11:00:00", "amount": 40.0, "comment": "#перевод", "account": { "id": 3, "title": "Transfer", "is_cash": false } },
+                                        { "id": 4, "date": "2026-02-12", "datetime": "2026-02-12T12:00:00", "amount": -20.0, "comment": "expense", "account": { "id": 1464652, "title": "Cash", "is_cash": true } },
+                                        { "id": 5, "date": "2026-02-12", "datetime": "2026-02-12T13:00:00", "amount": -10.0, "comment": "expense", "account": { "id": 1464653, "title": "Terminal", "is_cash": false } },
+                                        { "id": 6, "date": "2026-02-12", "datetime": "2026-02-12T14:00:00", "amount": -5.0, "comment": "#перевод", "account": { "id": 3, "title": "Transfer", "is_cash": false } },
+                                        { "id": 7, "date": "2026-02-13", "datetime": "2026-02-13T10:00:00", "amount": 25.0, "comment": "next day", "account": { "id": 1464652, "title": "Cash", "is_cash": true } },
+                                        { "id": 8, "date": "2026-02-11", "datetime": "2026-02-11T10:00:00", "amount": 15.0, "comment": "previous day", "account": { "id": 1464653, "title": "Terminal", "is_cash": false } }
                   ]
                 }
                 """));

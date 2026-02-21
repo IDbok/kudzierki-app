@@ -81,14 +81,7 @@ public sealed class AltegioService : IAltegioService
 
     public async Task<AltegioFinanceDailyResult> GetFinanceDailyAsync(DateOnly date, CancellationToken cancellationToken = default)
     {
-        var query = new Dictionary<string, string>
-        {
-            ["count"] = "500",
-            ["date_from"] = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-            ["date_to"] = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
-        };
-
-        var transactions = await GetEnvelopeAsync<AltegioTransaction>($"transactions/{_settings.CompanyId}", query, cancellationToken);
+        var transactions = await GetTransactionsAsync(date, date, cancellationToken);
 
         var incomes = transactions.Where(x => x.Amount > 0m).ToList();
         var expenses = transactions.Where(x => x.Amount < 0m).ToList();
@@ -115,11 +108,39 @@ public sealed class AltegioService : IAltegioService
             transactions.Count);
     }
 
+    public async Task<AltegioFinanceTransactionsResult> GetFinanceTransactionsAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken = default)
+    {
+        var transactions = await GetTransactionsAsync(from, to, cancellationToken);
+
+        var result = transactions
+            .OrderBy(ResolveTransactionTimestamp)
+            .Select(x =>
+            {
+                var timestamp = ResolveTransactionTimestamp(x);
+                return new AltegioFinanceTransaction(
+                    x.Id,
+                    timestamp,
+                    x.Date,
+                    x.LastChangeDate,
+                    x.Amount,
+                    x.Comment,
+                    x.Account?.Id,
+                    x.Account?.Title,
+                    IsCash(x));
+            })
+            .ToList();
+
+        return new AltegioFinanceTransactionsResult(from, to, result);
+    }
+
     private async Task<List<T>> GetEnvelopeAsync<T>(string path, IReadOnlyDictionary<string, string> query, CancellationToken cancellationToken)
     {
         var request = BuildRequest(path, query);
         var response = await _httpClient.SendAsync(request, cancellationToken);
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        if (path.StartsWith("transactions/", StringComparison.OrdinalIgnoreCase))
+            Console.WriteLine(body);
 
         if (!response.IsSuccessStatusCode)
         {
@@ -155,6 +176,62 @@ public sealed class AltegioService : IAltegioService
         var queryString = string.Join("&", query.Select(x => $"{Uri.EscapeDataString(x.Key)}={Uri.EscapeDataString(x.Value)}"));
         var uri = string.IsNullOrWhiteSpace(queryString) ? path : $"{path}?{queryString}";
         return new HttpRequestMessage(HttpMethod.Get, uri);
+    }
+
+    private async Task<List<AltegioTransaction>> GetTransactionsAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken)
+    {
+        const int pageSize = 500;
+        var all = new List<AltegioTransaction>();
+        var page = 1;
+
+        while (true)
+        {
+            var query = new Dictionary<string, string>
+            {
+                ["page"] = page.ToString(CultureInfo.InvariantCulture),
+                ["count"] = pageSize.ToString(CultureInfo.InvariantCulture),
+                ["start_date"] = from.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                ["end_date"] = to.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+            };
+
+            var chunk = await GetEnvelopeAsync<AltegioTransaction>($"transactions/{_settings.CompanyId}", query, cancellationToken);
+            if (chunk.Count == 0)
+                break;
+
+            all.AddRange(chunk.Where(x => IsTransactionInRange(x, from, to)));
+            if (chunk.Count < pageSize)
+                break;
+
+            page++;
+        }
+
+        return all;
+    }
+
+    private static bool IsTransactionInRange(AltegioTransaction transaction, DateOnly from, DateOnly to)
+    {
+        if (!TryResolveTransactionDate(transaction, out var transactionDate))
+            return true;
+
+        return transactionDate >= from && transactionDate <= to;
+    }
+
+    private static bool TryResolveTransactionDate(AltegioTransaction transaction, out DateOnly date)
+    {
+        var timestamp = ResolveTransactionTimestamp(transaction);
+        if (timestamp == default)
+        {
+            date = default;
+            return false;
+        }
+
+        date = DateOnly.FromDateTime(timestamp);
+        return true;
+    }
+
+    private static DateTime ResolveTransactionTimestamp(AltegioTransaction transaction)
+    {
+        return transaction.DateTime == default ? transaction.Date : transaction.DateTime;
     }
 
     private static bool IsCash(AltegioTransaction transaction)

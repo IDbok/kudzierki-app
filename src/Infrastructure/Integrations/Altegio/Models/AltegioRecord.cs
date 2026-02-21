@@ -8,9 +8,11 @@ public sealed class AltegioRecord
     public int Id { get; init; }
 
     [JsonPropertyName("date")]
+    [JsonConverter(typeof(AltegioDateTimeJsonConverter))]
     public DateTime Date { get; init; }
 
     [JsonPropertyName("datetime")]
+    [JsonConverter(typeof(AltegioDateTimeJsonConverter))]
     public DateTime DateTime { get; init; }
 
     [JsonPropertyName("visit_attendance")]

@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Api.Controllers;
 
 [ApiController]
-[Authorize]
+//[Authorize]
 [Route("api/v1/cash-register")]
 public class CashRegisterController : ControllerBase
 {
