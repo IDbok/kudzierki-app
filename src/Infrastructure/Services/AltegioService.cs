@@ -113,14 +113,14 @@ public sealed class AltegioService : IAltegioService
         var transactions = await GetTransactionsAsync(from, to, cancellationToken);
 
         var result = transactions
-            .OrderBy(ResolveTransactionTimestamp)
+            .OrderBy(ResolveTransactionCreatedTimestamp)
             .Select(x =>
             {
                 var timestamp = ResolveTransactionTimestamp(x);
                 return new AltegioFinanceTransaction(
                     x.Id,
                     timestamp,
-                    x.Date,
+                    ResolveTransactionCreatedTimestamp(x),
                     x.LastChangeDate,
                     x.Amount,
                     x.Comment,
@@ -141,7 +141,7 @@ public sealed class AltegioService : IAltegioService
         var transactions = await GetTransactionsAsync(from, to, cancellationToken);
 
         return transactions
-            .OrderBy(ResolveTransactionTimestamp)
+            .OrderBy(ResolveTransactionCreatedTimestamp)
             .Select(x => new AltegioFinanceSourceTransaction(
                 x.Id,
                 ResolveTransactionTimestamp(x),
@@ -221,7 +221,7 @@ public sealed class AltegioService : IAltegioService
             if (chunk.Count == 0)
                 break;
 
-            all.AddRange(chunk.Where(x => IsTransactionInRange(x, from, to)));
+            all.AddRange(chunk.Where(x => IsTransactionInRangeByCreatedAt(x, from, to)));
             if (chunk.Count < pageSize)
                 break;
 
@@ -231,30 +231,35 @@ public sealed class AltegioService : IAltegioService
         return all;
     }
 
-    private static bool IsTransactionInRange(AltegioTransaction transaction, DateOnly from, DateOnly to)
+    private static bool IsTransactionInRangeByCreatedAt(AltegioTransaction transaction, DateOnly from, DateOnly to)
     {
-        if (!TryResolveTransactionDate(transaction, out var transactionDate))
+        if (!TryResolveCreatedAtDate(transaction, out var createdAtDate))
             return true;
 
-        return transactionDate >= from && transactionDate <= to;
+        return createdAtDate >= from && createdAtDate <= to;
     }
 
-    private static bool TryResolveTransactionDate(AltegioTransaction transaction, out DateOnly date)
+    private static bool TryResolveCreatedAtDate(AltegioTransaction transaction, out DateOnly date)
     {
-        var timestamp = ResolveTransactionTimestamp(transaction);
-        if (timestamp == default)
+        var createdTimestamp = ResolveTransactionCreatedTimestamp(transaction);
+        if (createdTimestamp == default)
         {
             date = default;
             return false;
         }
 
-        date = DateOnly.FromDateTime(timestamp);
+        date = DateOnly.FromDateTime(createdTimestamp);
         return true;
     }
 
     private static DateTime ResolveTransactionTimestamp(AltegioTransaction transaction)
     {
         return transaction.DateTime == default ? transaction.Date : transaction.DateTime;
+    }
+
+    private static DateTime ResolveTransactionCreatedTimestamp(AltegioTransaction transaction)
+    {
+        return transaction.CreatedAt == default ? ResolveTransactionTimestamp(transaction) : transaction.CreatedAt;
     }
 
     private static DateTime? ToNullableDateTime(DateTime value)

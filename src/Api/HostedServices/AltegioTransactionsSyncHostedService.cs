@@ -46,13 +46,13 @@ public sealed class AltegioTransactionsSyncHostedService : BackgroundService
 
                 var shortFrom = todayUtc.AddDays(_settings.ShortFromDaysOffset);
                 var shortTo = todayUtc.AddDays(_settings.ShortToDaysOffset);
-                await RunSyncAsync(shortFrom, shortTo, "short", stoppingToken);
+                await RunSyncAsync(shortFrom, shortTo, "short", reconcileDeleted: false, stoppingToken);
 
                 if (nowUtc >= nextFullSyncAtUtc)
                 {
                     var fullFrom = todayUtc.AddDays(_settings.FullFromDaysOffset);
                     var fullTo = todayUtc.AddDays(_settings.FullToDaysOffset);
-                    await RunSyncAsync(fullFrom, fullTo, "full", stoppingToken);
+                    await RunSyncAsync(fullFrom, fullTo, "full", reconcileDeleted: true, stoppingToken);
 
                     nextFullSyncAtUtc = nowUtc.AddHours(_settings.FullSyncIntervalHours);
                 }
@@ -77,22 +77,30 @@ public sealed class AltegioTransactionsSyncHostedService : BackgroundService
         }
     }
 
-    private async Task RunSyncAsync(DateOnly from, DateOnly to, string mode, CancellationToken cancellationToken)
+    private async Task RunSyncAsync(
+        DateOnly from,
+        DateOnly to,
+        string mode,
+        bool reconcileDeleted,
+        CancellationToken cancellationToken)
     {
         using var scope = _scopeFactory.CreateScope();
         var ingestionService = scope.ServiceProvider.GetRequiredService<IAltegioTransactionIngestionService>();
-        var result = await ingestionService.IngestFinanceTransactionsAsync(from, to, cancellationToken);
+        var result = await ingestionService.IngestFinanceTransactionsAsync(from, to, reconcileDeleted, cancellationToken);
 
         _logger.LogInformation(
-            "Altegio {Mode} sync completed for {From}..{To}. Fetched: {Fetched}, Distinct: {Distinct}, Raw inserted: {RawInserted}, Snapshots inserted: {SnapshotInserted}, Snapshots updated: {SnapshotUpdated}",
+            "Altegio {Mode} sync completed for {From}..{To}. Reconcile deleted: {ReconcileDeleted}. Fetched: {Fetched}, Distinct: {Distinct}, Raw inserted: {RawInserted}, Snapshots inserted: {SnapshotInserted}, Snapshots updated: {SnapshotUpdated}, Deleted marked: {DeletedMarked}, Deleted restored: {DeletedRestored}",
             mode,
             result.From,
             result.To,
+            reconcileDeleted,
             result.FetchedCount,
             result.DistinctExternalIdsCount,
             result.RawInsertedCount,
             result.SnapshotInsertedCount,
-            result.SnapshotUpdatedCount);
+            result.SnapshotUpdatedCount,
+            result.DeletedMarkedCount,
+            result.DeletedRestoredCount);
     }
 
     private static DateTime EnsureUtc(DateTime dateTime)

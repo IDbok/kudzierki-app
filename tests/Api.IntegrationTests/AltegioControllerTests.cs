@@ -157,6 +157,8 @@ public class AltegioControllerTests : IClassFixture<CustomWebApplicationFactory>
         firstPayload.RawInsertedCount.Should().Be(6);
         firstPayload.SnapshotInsertedCount.Should().Be(6);
         firstPayload.SnapshotUpdatedCount.Should().Be(0);
+        firstPayload.DeletedMarkedCount.Should().Be(0);
+        firstPayload.DeletedRestoredCount.Should().Be(0);
 
         var secondResponse = await _client.PostAsync("/api/v1/altegio/finance/transactions/sync?date=2026-02-12", null);
         secondResponse.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -168,6 +170,8 @@ public class AltegioControllerTests : IClassFixture<CustomWebApplicationFactory>
         secondPayload.RawInsertedCount.Should().Be(0);
         secondPayload.SnapshotInsertedCount.Should().Be(0);
         secondPayload.SnapshotUpdatedCount.Should().Be(6);
+        secondPayload.DeletedMarkedCount.Should().Be(0);
+        secondPayload.DeletedRestoredCount.Should().Be(0);
     }
 
     private HttpClient CreateClientWithMockedAltegio()
@@ -274,14 +278,14 @@ public class AltegioControllerTests : IClassFixture<CustomWebApplicationFactory>
                 return Task.FromResult(JsonResponse("""
                 {
                   "data": [
-                                        { "id": 1, "date": "2026-02-12", "datetime": "2026-02-12T09:00:00", "last_change_date": "2026-02-12T09:30:00", "amount": 100.0, "comment": "service", "account": { "id": 1464652, "title": "Cash", "is_cash": true } },
-                                        { "id": 2, "date": "2026-02-12", "datetime": "2026-02-12T10:00:00", "amount": 60.0, "comment": "service", "account": { "id": 1464653, "title": "Terminal", "is_cash": false } },
-                                        { "id": 3, "date": "2026-02-12", "datetime": "2026-02-12T11:00:00", "amount": 40.0, "comment": "#перевод", "account": { "id": 3, "title": "Transfer", "is_cash": false } },
-                                        { "id": 4, "date": "2026-02-12", "datetime": "2026-02-12T12:00:00", "amount": -20.0, "comment": "expense", "account": { "id": 1464652, "title": "Cash", "is_cash": true } },
-                                        { "id": 5, "date": "2026-02-12", "datetime": "2026-02-12T13:00:00", "amount": -10.0, "comment": "expense", "account": { "id": 1464653, "title": "Terminal", "is_cash": false } },
-                                        { "id": 6, "date": "2026-02-12", "datetime": "2026-02-12T14:00:00", "amount": -5.0, "comment": "#перевод", "account": { "id": 3, "title": "Transfer", "is_cash": false } },
-                                        { "id": 7, "date": "2026-02-13", "datetime": "2026-02-13T10:00:00", "amount": 25.0, "comment": "next day", "account": { "id": 1464652, "title": "Cash", "is_cash": true } },
-                                        { "id": 8, "date": "2026-02-11", "datetime": "2026-02-11T10:00:00", "amount": 15.0, "comment": "previous day", "account": { "id": 1464653, "title": "Terminal", "is_cash": false } }
+                                        { "id": 1, "date": "2026-02-12", "datetime": "2026-02-12T09:00:00", "create_date": "2026-02-12T09:00:00", "last_change_date": "2026-02-12T09:30:00", "amount": 100.0, "comment": "service", "account": { "id": 1464652, "title": "Cash", "is_cash": true } },
+                                        { "id": 2, "date": "2026-02-12", "datetime": "2026-02-12T10:00:00", "create_date": "2026-02-12T10:00:00", "amount": 60.0, "comment": "service", "account": { "id": 1464653, "title": "Terminal", "is_cash": false } },
+                                        { "id": 3, "date": "2026-02-12", "datetime": "2026-02-12T11:00:00", "create_date": "2026-02-12T11:00:00", "amount": 40.0, "comment": "#перевод", "account": { "id": 3, "title": "Transfer", "is_cash": false } },
+                                        { "id": 4, "date": "2026-02-12", "datetime": "2026-02-12T12:00:00", "create_date": "2026-02-12T12:00:00", "amount": -20.0, "comment": "expense", "account": { "id": 1464652, "title": "Cash", "is_cash": true } },
+                                        { "id": 5, "date": "2026-02-12", "datetime": "2026-02-12T13:00:00", "create_date": "2026-02-12T13:00:00", "amount": -10.0, "comment": "expense", "account": { "id": 1464653, "title": "Terminal", "is_cash": false } },
+                                        { "id": 6, "date": "2026-02-12", "datetime": "2026-02-12T14:00:00", "create_date": "2026-02-12T14:00:00", "amount": -5.0, "comment": "#перевод", "account": { "id": 3, "title": "Transfer", "is_cash": false } },
+                                        { "id": 7, "date": "2026-02-13", "datetime": "2026-02-13T10:00:00", "create_date": "2026-02-13T10:00:00", "amount": 25.0, "comment": "next day", "account": { "id": 1464652, "title": "Cash", "is_cash": true } },
+                                        { "id": 8, "date": "2026-02-11", "datetime": "2026-02-11T10:00:00", "create_date": "2026-02-11T10:00:00", "amount": 15.0, "comment": "previous day", "account": { "id": 1464653, "title": "Terminal", "is_cash": false } }
                   ]
                 }
                 """));

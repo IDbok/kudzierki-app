@@ -7,4 +7,6 @@ public sealed record AltegioFinanceTransactionsSyncResponse(
     int DistinctExternalIdsCount,
     int RawInsertedCount,
     int SnapshotInsertedCount,
-    int SnapshotUpdatedCount);
+    int SnapshotUpdatedCount,
+    int DeletedMarkedCount,
+    int DeletedRestoredCount);

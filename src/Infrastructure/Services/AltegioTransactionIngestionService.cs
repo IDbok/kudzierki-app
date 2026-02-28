@@ -30,6 +30,7 @@ public sealed class AltegioTransactionIngestionService : IAltegioTransactionInge
     public async Task<AltegioTransactionIngestionResult> IngestFinanceTransactionsAsync(
         DateOnly from,
         DateOnly to,
+        bool reconcileDeleted = false,
         CancellationToken cancellationToken = default)
     {
         var fetchedAtUtc = EnsureUtc(_timeProvider.UtcNow);
@@ -40,18 +41,6 @@ public sealed class AltegioTransactionIngestionService : IAltegioTransactionInge
             .GroupBy(x => x.Id)
             .Select(g => g.Last())
             .ToList();
-
-        if (latestTransactionByExternalId.Count == 0)
-        {
-            return new AltegioTransactionIngestionResult(
-                from,
-                to,
-                sourceTransactions.Count,
-                0,
-                0,
-                0,
-                0);
-        }
 
         var externalIds = latestTransactionByExternalId.Select(x => x.Id).Distinct().ToArray();
 
@@ -91,6 +80,7 @@ public sealed class AltegioTransactionIngestionService : IAltegioTransactionInge
 
         var snapshotInserted = 0;
         var snapshotUpdated = 0;
+        var deletedRestored = 0;
 
         foreach (var transaction in latestTransactionByExternalId)
         {
@@ -121,20 +111,59 @@ public sealed class AltegioTransactionIngestionService : IAltegioTransactionInge
             snapshot.AccountId = transaction.AccountId;
             snapshot.AccountTitle = transaction.AccountTitle;
             snapshot.IsCash = transaction.IsCash;
+            if (snapshot.IsDeletedInSource)
+                deletedRestored++;
+
+            snapshot.IsDeletedInSource = false;
+            snapshot.DeletedDetectedAtUtc = null;
             snapshot.LastSeenAtUtc = fetchedAtOffset;
+        }
+
+        var deletedMarked = 0;
+        if (reconcileDeleted)
+        {
+            var fromCreatedAt = from.ToDateTime(TimeOnly.MinValue);
+            var toCreatedAtExclusive = to.AddDays(1).ToDateTime(TimeOnly.MinValue);
+            var fromFirstSeen = new DateTimeOffset(fromCreatedAt, TimeSpan.Zero);
+            var toFirstSeenExclusive = new DateTimeOffset(toCreatedAtExclusive, TimeSpan.Zero);
+            var activeExternalIds = latestTransactionByExternalId.Select(x => x.Id).ToHashSet();
+
+            var candidateSnapshots = await _dbContext.AltegioTransactionSnapshots
+                .Where(x => !x.IsDeletedInSource &&
+                            (
+                                (x.AltegioCreateDateTime.HasValue &&
+                                 x.AltegioCreateDateTime.Value >= fromCreatedAt &&
+                                 x.AltegioCreateDateTime.Value < toCreatedAtExclusive) ||
+                                (!x.AltegioCreateDateTime.HasValue &&
+                                 x.FirstSeenAtUtc >= fromFirstSeen &&
+                                 x.FirstSeenAtUtc < toFirstSeenExclusive)
+                            ))
+                .ToListAsync(cancellationToken);
+
+            foreach (var snapshot in candidateSnapshots)
+            {
+                if (activeExternalIds.Contains(snapshot.ExternalId))
+                    continue;
+
+                snapshot.IsDeletedInSource = true;
+                snapshot.DeletedDetectedAtUtc = fetchedAtOffset;
+                deletedMarked++;
+            }
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation(
-            "Altegio transaction ingest completed for range {From}..{To}. Fetched: {Fetched}, Distinct: {Distinct}, Raw inserted: {RawInserted}, Snapshots inserted: {SnapshotInserted}, Snapshots updated: {SnapshotUpdated}",
+            "Altegio transaction ingest completed for range {From}..{To}. Fetched: {Fetched}, Distinct: {Distinct}, Raw inserted: {RawInserted}, Snapshots inserted: {SnapshotInserted}, Snapshots updated: {SnapshotUpdated}, Deleted marked: {DeletedMarked}, Deleted restored: {DeletedRestored}",
             from,
             to,
             sourceTransactions.Count,
             latestTransactionByExternalId.Count,
             rawInserted,
             snapshotInserted,
-            snapshotUpdated);
+            snapshotUpdated,
+            deletedMarked,
+            deletedRestored);
 
         return new AltegioTransactionIngestionResult(
             from,
@@ -143,7 +172,9 @@ public sealed class AltegioTransactionIngestionService : IAltegioTransactionInge
             latestTransactionByExternalId.Count,
             rawInserted,
             snapshotInserted,
-            snapshotUpdated);
+            snapshotUpdated,
+            deletedMarked,
+            deletedRestored);
     }
 
     private static string ComputePayloadHash(string payloadJson)

@@ -155,8 +155,12 @@ public class ApplicationDbContext : DbContext
                 .HasMaxLength(256);
 
             entity.Property(e => e.IsCash).IsRequired();
+            entity.Property(e => e.IsDeletedInSource)
+                .IsRequired()
+                .HasDefaultValue(false);
             entity.Property(e => e.FirstSeenAtUtc).IsRequired();
             entity.Property(e => e.LastSeenAtUtc).IsRequired();
+            entity.Property(e => e.DeletedDetectedAtUtc).IsRequired(false);
 
             entity.HasIndex(e => e.ExternalId)
                 .IsUnique();

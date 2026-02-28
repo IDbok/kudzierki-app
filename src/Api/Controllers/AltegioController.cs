@@ -118,19 +118,30 @@ public class AltegioController : ControllerBase
 
         var fromDateTime = fromDate.ToDateTime(TimeOnly.MinValue);
         var toExclusiveDateTime = toDate.AddDays(1).ToDateTime(TimeOnly.MinValue);
+        var fromDateOffset = new DateTimeOffset(fromDateTime, TimeSpan.Zero);
+        var toExclusiveDateOffset = new DateTimeOffset(toExclusiveDateTime, TimeSpan.Zero);
 
         var snapshots = await _dbContext.AltegioTransactionSnapshots
-            .Where(x => x.AppointmentDateTime.HasValue &&
-                        x.AppointmentDateTime.Value >= fromDateTime &&
-                        x.AppointmentDateTime.Value < toExclusiveDateTime)
-            .OrderBy(x => x.AppointmentDateTime)
+            .Where(x => !x.IsDeletedInSource &&
+                        (
+                            (x.AltegioCreateDateTime.HasValue &&
+                             x.AltegioCreateDateTime.Value >= fromDateTime &&
+                             x.AltegioCreateDateTime.Value < toExclusiveDateTime) ||
+                            (!x.AltegioCreateDateTime.HasValue &&
+                             x.FirstSeenAtUtc >= fromDateOffset &&
+                             x.FirstSeenAtUtc < toExclusiveDateOffset)
+                        ))
             .ToListAsync(cancellationToken);
+
+        snapshots = snapshots
+            .OrderBy(x => x.AltegioCreateDateTime ?? x.FirstSeenAtUtc.UtcDateTime)
+            .ToList();
 
         var transactions = snapshots
             .Select(x => new AltegioFinanceTransactionItemResponse(
                 x.ExternalId,
-                x.AppointmentDateTime!.Value,
-                x.FirstSeenAtUtc.UtcDateTime,
+                x.AltegioCreateDateTime ?? x.FirstSeenAtUtc.UtcDateTime,
+                x.AltegioCreateDateTime ?? x.FirstSeenAtUtc.UtcDateTime,
                 x.LastChangeDateTime,
                 x.Amount,
                 x.Comment,
@@ -164,12 +175,13 @@ public class AltegioController : ControllerBase
         [FromQuery] string? date,
         [FromQuery] string? from,
         [FromQuery] string? to,
+        [FromQuery] bool reconcileDeleted,
         CancellationToken cancellationToken)
     {
         if (!TryResolveFinanceRange(date, from, to, out var fromDate, out var toDate, out var error))
             return BadRequest(CreateBadRequest(error));
 
-        var result = await _ingestionService.IngestFinanceTransactionsAsync(fromDate, toDate, cancellationToken);
+        var result = await _ingestionService.IngestFinanceTransactionsAsync(fromDate, toDate, reconcileDeleted, cancellationToken);
 
         return Ok(new AltegioFinanceTransactionsSyncResponse(
             result.From,
@@ -178,7 +190,9 @@ public class AltegioController : ControllerBase
             result.DistinctExternalIdsCount,
             result.RawInsertedCount,
             result.SnapshotInsertedCount,
-            result.SnapshotUpdatedCount));
+            result.SnapshotUpdatedCount,
+            result.DeletedMarkedCount,
+            result.DeletedRestoredCount));
     }
 
     private static ProblemDetails CreateBadRequest(string detail)

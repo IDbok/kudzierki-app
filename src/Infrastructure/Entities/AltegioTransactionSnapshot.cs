@@ -22,6 +22,10 @@ public class AltegioTransactionSnapshot
 
     public bool IsCash { get; set; }
 
+    public bool IsDeletedInSource { get; set; }
+
+    public DateTimeOffset? DeletedDetectedAtUtc { get; set; }
+
     public DateTimeOffset FirstSeenAtUtc { get; set; }
 
     public DateTimeOffset LastSeenAtUtc { get; set; }
